@@ -41,7 +41,13 @@ const validateImageData = (data: string): boolean => {
   return data.startsWith('data:image/') && data.includes('base64,')
 }
 
+const ADMIN_PASSWORD = "lille1234"
+
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [passwordInput, setPasswordInput] = useState("")
+  const [passwordError, setPasswordError] = useState(false)
+  
   const [activeTab, setActiveTab] = useState<"creations" | "projects">("creations")
   
   // Creations state
@@ -70,9 +76,25 @@ export default function AdminPage() {
   })
 
   useEffect(() => {
-    // Charger les donnees directement
-    loadData()
+    // Verifier si deja authentifie dans la session
+    const sessionAuth = sessionStorage.getItem("admin_authenticated")
+    if (sessionAuth === "true") {
+      setIsAuthenticated(true)
+      loadData()
+    }
   }, [])
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passwordInput === ADMIN_PASSWORD) {
+      setIsAuthenticated(true)
+      setPasswordError(false)
+      sessionStorage.setItem("admin_authenticated", "true")
+      loadData()
+    } else {
+      setPasswordError(true)
+    }
+  }
 
   const loadData = () => {
     // Charger les creations
@@ -385,6 +407,54 @@ export default function AdminPage() {
       const updatedProjects = projects.filter(p => p.id !== id)
       saveProjects(updatedProjects)
     }
+  }
+
+  // Ecran de connexion
+  if (!isAuthenticated) {
+    return (
+      <main className="relative min-h-screen flex items-center justify-center">
+        <Navigation />
+        <div className="w-full max-w-md p-8">
+          <div className="text-center mb-8">
+            <h1 className="font-display text-3xl font-bold mb-2">Administration</h1>
+            <p className="text-muted-foreground text-sm">Entrez le mot de passe pour acceder au panneau</p>
+          </div>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">MOT DE PASSE</label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value)
+                  setPasswordError(false)
+                }}
+                className={`w-full px-4 py-3 bg-background border ${passwordError ? 'border-red-500' : 'border-border'} focus:border-foreground transition-colors outline-none`}
+                placeholder="Entrez le mot de passe..."
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-red-500 text-xs mt-2 font-mono">Mot de passe incorrect</p>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="w-full px-6 py-3 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors"
+            >
+              Se connecter
+            </button>
+          </form>
+          <div className="text-center mt-6">
+            <Link 
+              href="/"
+              className="text-muted-foreground hover:text-foreground transition-colors text-sm font-mono"
+            >
+              Retour a l&apos;accueil
+            </Link>
+          </div>
+        </div>
+      </main>
+    )
   }
 
   return (
