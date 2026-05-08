@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { Plus, Pencil, Trash2, X, Upload, ArrowLeft, FolderOpen, Layers } from "lucide-react"
+import { Plus, Pencil, Trash2, X, Upload, ArrowLeft, FolderOpen, Layers, Loader2 } from "lucide-react"
 import { Navigation } from "@/components/portfolio/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 interface Creation {
   id: string
@@ -13,7 +14,8 @@ interface Creation {
   category: string
   tags: string[]
   images: string[]
-  createdAt: string
+  video_url?: string
+  created_at: string
 }
 
 interface Project {
@@ -23,8 +25,8 @@ interface Project {
   role: string
   tags: string[]
   images: string[]
-  discordLink: string
-  createdAt: string
+  discord_link: string
+  created_at: string
 }
 
 // Fonction de validation des entrees
@@ -47,6 +49,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [passwordInput, setPasswordInput] = useState("")
   const [passwordError, setPasswordError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   
   const [activeTab, setActiveTab] = useState<"creations" | "projects">("creations")
   
@@ -59,7 +62,8 @@ export default function AdminPage() {
     description: "",
     category: "",
     tags: "",
-    images: [] as string[]
+    images: [] as string[],
+    video_url: ""
   })
 
   // Projects state
@@ -72,8 +76,46 @@ export default function AdminPage() {
     role: "",
     tags: "",
     images: [] as string[],
-    discordLink: ""
+    discord_link: ""
   })
+
+  const supabase = createClient()
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      // Charger les creations depuis Supabase
+      const { data: creationsData, error: creationsError } = await supabase
+        .from('creations')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (creationsError) {
+        console.error('Error loading creations:', creationsError)
+      } else {
+        setCreations(creationsData?.map(c => ({
+          ...c,
+          category: c.tags?.[0] || 'MODELISATION'
+        })) || [])
+      }
+
+      // Charger les projets depuis Supabase
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (projectsError) {
+        console.error('Error loading projects:', projectsError)
+      } else {
+        setProjects(projectsData || [])
+      }
+    } catch (error) {
+      console.error('Error loading data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [supabase])
 
   useEffect(() => {
     // Verifier si deja authentifie dans la session
@@ -82,7 +124,7 @@ export default function AdminPage() {
       setIsAuthenticated(true)
       loadData()
     }
-  }, [])
+  }, [loadData])
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -96,82 +138,72 @@ export default function AdminPage() {
     }
   }
 
-  const loadData = () => {
-    // Charger les creations
-    const savedCreations = localStorage.getItem("portfolio_creations")
-    if (savedCreations) {
-      try {
-        setCreations(JSON.parse(savedCreations))
-      } catch {
-        setCreations([])
-      }
-    }
+  // === CREATIONS ===
+  const saveCreation = async (creation: Omit<Creation, 'id' | 'created_at'>) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('creations')
+        .insert({
+          title: creation.title,
+          description: creation.description,
+          tags: creation.tags,
+          images: creation.images,
+          video_url: creation.video_url
+        })
 
-    // Charger les projets
-    const savedProjects = localStorage.getItem("portfolio_projects")
-    if (savedProjects) {
-      try {
-        setProjects(JSON.parse(savedProjects))
-      } catch {
-        // Projets par defaut
-        const defaultProjects: Project[] = [
-          {
-            id: "1",
-            title: "French Studios",
-            description: "French Studio est un roleplay Francais qui melange WL et FA avec une WL qui est a Creteil et une FA a Lille. Je suis ravi de developper et de co-fonder le projet.",
-            role: "Co-Fondateur",
-            tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
-            images: [],
-            discordLink: "https://discord.gg/uvCdpk5W24",
-            createdAt: "2026"
-          },
-          {
-            id: "2",
-            title: "French Products",
-            description: "Informations a venir...",
-            role: "Projet",
-            tags: ["ROBLOX", "MADE IN FRANCE"],
-            images: [],
-            discordLink: "https://discord.gg/uvCdpk5W24",
-            createdAt: "2026"
-          }
-        ]
-        setProjects(defaultProjects)
-        localStorage.setItem("portfolio_projects", JSON.stringify(defaultProjects))
-      }
-    } else {
-      // Projets par defaut
-      const defaultProjects: Project[] = [
-        {
-          id: "1",
-          title: "French Studios",
-          description: "French Studio est un roleplay Francais qui melange WL et FA avec une WL qui est a Creteil et une FA a Lille. Je suis ravi de developper et de co-fonder le projet.",
-          role: "Co-Fondateur",
-          tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
-          images: [],
-          discordLink: "https://discord.gg/uvCdpk5W24",
-          createdAt: "2026"
-        },
-        {
-          id: "2",
-          title: "French Products",
-          description: "Informations a venir...",
-          role: "Projet",
-          tags: ["ROBLOX", "MADE IN FRANCE"],
-          images: [],
-          discordLink: "https://discord.gg/uvCdpk5W24",
-          createdAt: "2026"
-        }
-      ]
-      setProjects(defaultProjects)
-      localStorage.setItem("portfolio_projects", JSON.stringify(defaultProjects))
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error saving creation:', error)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // === CREATIONS ===
-  const saveCreations = (newCreations: Creation[]) => {
-    setCreations(newCreations)
-    localStorage.setItem("portfolio_creations", JSON.stringify(newCreations))
+  const updateCreation = async (id: string, creation: Partial<Creation>) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('creations')
+        .update({
+          title: creation.title,
+          description: creation.description,
+          tags: creation.tags,
+          images: creation.images,
+          video_url: creation.video_url
+        })
+        .eq('id', id)
+
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error updating creation:', error)
+      alert('Erreur lors de la mise a jour')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const deleteCreation = async (id: string) => {
+    if (!confirm("Etes-vous sur de vouloir supprimer cette creation ?")) return
+    
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('creations')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting creation:', error)
+      alert('Erreur lors de la suppression')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCreationImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,10 +242,11 @@ export default function AdminPage() {
       setEditingCreation(creation)
       setCreationForm({
         title: creation.title,
-        description: creation.description,
-        category: creation.category,
-        tags: creation.tags.join(", "),
-        images: creation.images
+        description: creation.description || "",
+        category: creation.category || creation.tags?.[0] || "",
+        tags: creation.tags?.join(", ") || "",
+        images: creation.images || [],
+        video_url: creation.video_url || ""
       })
     } else {
       setEditingCreation(null)
@@ -222,7 +255,8 @@ export default function AdminPage() {
         description: "",
         category: "",
         tags: "",
-        images: []
+        images: [],
+        video_url: ""
       })
     }
     setIsCreationModalOpen(true)
@@ -233,7 +267,7 @@ export default function AdminPage() {
     setEditingCreation(null)
   }
 
-  const handleCreationSubmit = (e: React.FormEvent) => {
+  const handleCreationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const sanitizedTitle = sanitizeInput(creationForm.title)
@@ -245,52 +279,102 @@ export default function AdminPage() {
       return
     }
 
-    const tagsArray = creationForm.tags
+    const tagsArray = [sanitizedCategory, ...creationForm.tags
       .split(",")
       .map(tag => sanitizeInput(tag).toUpperCase())
       .filter(Boolean)
+      .filter(tag => tag !== sanitizedCategory.toUpperCase())]
     
     if (editingCreation) {
-      const updatedCreations = creations.map(c => 
-        c.id === editingCreation.id 
-          ? { 
-              ...c, 
-              title: sanitizedTitle,
-              description: sanitizedDescription,
-              category: sanitizedCategory,
-              tags: tagsArray,
-              images: creationForm.images
-            }
-          : c
-      )
-      saveCreations(updatedCreations)
+      await updateCreation(editingCreation.id, {
+        title: sanitizedTitle,
+        description: sanitizedDescription,
+        tags: tagsArray,
+        images: creationForm.images,
+        video_url: creationForm.video_url
+      })
     } else {
-      const newCreation: Creation = {
-        id: Date.now().toString(),
+      await saveCreation({
         title: sanitizedTitle,
         description: sanitizedDescription,
         category: sanitizedCategory,
         tags: tagsArray,
         images: creationForm.images,
-        createdAt: new Date().getFullYear().toString()
-      }
-      saveCreations([...creations, newCreation])
+        video_url: creationForm.video_url
+      })
     }
     
     closeCreationModal()
   }
 
-  const deleteCreation = (id: string) => {
-    if (confirm("Etes-vous sur de vouloir supprimer cette creation ?")) {
-      const updatedCreations = creations.filter(c => c.id !== id)
-      saveCreations(updatedCreations)
+  // === PROJECTS ===
+  const saveProject = async (project: Omit<Project, 'id' | 'created_at'>) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .insert({
+          title: project.title,
+          description: project.description,
+          role: project.role,
+          tags: project.tags,
+          images: project.images,
+          discord_link: project.discord_link
+        })
+
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error saving project:', error)
+      alert('Erreur lors de la sauvegarde')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // === PROJECTS ===
-  const saveProjects = (newProjects: Project[]) => {
-    setProjects(newProjects)
-    localStorage.setItem("portfolio_projects", JSON.stringify(newProjects))
+  const updateProject = async (id: string, project: Partial<Project>) => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          title: project.title,
+          description: project.description,
+          role: project.role,
+          tags: project.tags,
+          images: project.images,
+          discord_link: project.discord_link
+        })
+        .eq('id', id)
+
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error updating project:', error)
+      alert('Erreur lors de la mise a jour')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const deleteProject = async (id: string) => {
+    if (!confirm("Etes-vous sur de vouloir supprimer ce projet ?")) return
+    
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      alert('Erreur lors de la suppression')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleProjectImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -328,11 +412,11 @@ export default function AdminPage() {
       setEditingProject(project)
       setProjectForm({
         title: project.title,
-        description: project.description,
-        role: project.role,
-        tags: project.tags.join(", "),
-        images: project.images,
-        discordLink: project.discordLink || ""
+        description: project.description || "",
+        role: project.role || "",
+        tags: project.tags?.join(", ") || "",
+        images: project.images || [],
+        discord_link: project.discord_link || ""
       })
     } else {
       setEditingProject(null)
@@ -342,7 +426,7 @@ export default function AdminPage() {
         role: "",
         tags: "",
         images: [],
-        discordLink: ""
+        discord_link: ""
       })
     }
     setIsProjectModalOpen(true)
@@ -353,7 +437,7 @@ export default function AdminPage() {
     setEditingProject(null)
   }
 
-  const handleProjectSubmit = (e: React.FormEvent) => {
+  const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const sanitizedTitle = sanitizeInput(projectForm.title)
@@ -371,42 +455,26 @@ export default function AdminPage() {
       .filter(Boolean)
     
     if (editingProject) {
-      const updatedProjects = projects.map(p => 
-        p.id === editingProject.id 
-          ? { 
-              ...p, 
-              title: sanitizedTitle,
-              description: sanitizedDescription,
-              role: sanitizedRole,
-              tags: tagsArray,
-              images: projectForm.images,
-              discordLink: projectForm.discordLink
-            }
-          : p
-      )
-      saveProjects(updatedProjects)
-    } else {
-      const newProject: Project = {
-        id: Date.now().toString(),
+      await updateProject(editingProject.id, {
         title: sanitizedTitle,
         description: sanitizedDescription,
         role: sanitizedRole,
         tags: tagsArray,
         images: projectForm.images,
-        discordLink: projectForm.discordLink,
-        createdAt: new Date().getFullYear().toString()
-      }
-      saveProjects([...projects, newProject])
+        discord_link: projectForm.discord_link
+      })
+    } else {
+      await saveProject({
+        title: sanitizedTitle,
+        description: sanitizedDescription,
+        role: sanitizedRole,
+        tags: tagsArray,
+        images: projectForm.images,
+        discord_link: projectForm.discord_link
+      })
     }
     
     closeProjectModal()
-  }
-
-  const deleteProject = (id: string) => {
-    if (confirm("Etes-vous sur de vouloir supprimer ce projet ?")) {
-      const updatedProjects = projects.filter(p => p.id !== id)
-      saveProjects(updatedProjects)
-    }
   }
 
   // Ecran de connexion
@@ -461,6 +529,13 @@ export default function AdminPage() {
     <main className="relative min-h-screen">
       <Navigation />
       
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      )}
+      
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -476,7 +551,7 @@ export default function AdminPage() {
                 </Link>
               </div>
               <h1 className="font-display text-4xl md:text-5xl font-bold">Administration</h1>
-              <p className="text-muted-foreground mt-2">Gerez vos creations et projets</p>
+              <p className="text-muted-foreground mt-2">Gerez vos creations et projets (Supabase)</p>
             </div>
           </div>
 
@@ -542,7 +617,7 @@ export default function AdminPage() {
                       className="group relative border border-border bg-card overflow-hidden"
                     >
                       <div className="aspect-video bg-muted relative overflow-hidden">
-                        {creation.images.length > 0 ? (
+                        {creation.images && creation.images.length > 0 ? (
                           <Image
                             src={creation.images[0]}
                             alt={creation.title}
@@ -570,7 +645,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div className="p-4">
-                        <div className="font-mono text-xs text-muted-foreground mb-1">{creation.category}</div>
+                        <div className="font-mono text-xs text-muted-foreground mb-1">{creation.category || creation.tags?.[0]}</div>
                         <h3 className="font-display text-lg font-bold mb-2">{creation.title}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">{creation.description}</p>
                       </div>
@@ -608,14 +683,14 @@ export default function AdminPage() {
                   </button>
                 </div>
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid md:grid-cols-2 gap-6">
                   {projects.map((project) => (
                     <div 
                       key={project.id}
                       className="group relative border border-border bg-card overflow-hidden"
                     >
                       <div className="aspect-video bg-muted relative overflow-hidden">
-                        {project.images.length > 0 ? (
+                        {project.images && project.images.length > 0 ? (
                           <Image
                             src={project.images[0]}
                             alt={project.title}
@@ -646,6 +721,9 @@ export default function AdminPage() {
                         <div className="font-mono text-xs text-muted-foreground mb-1">{project.role}</div>
                         <h3 className="font-display text-lg font-bold mb-2">{project.title}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+                        {project.discord_link && (
+                          <p className="text-xs text-muted-foreground mt-2 font-mono truncate">Discord: {project.discord_link}</p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -658,15 +736,14 @@ export default function AdminPage() {
 
       {/* Creation Modal */}
       {isCreationModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-background/90 backdrop-blur-sm" onClick={closeCreationModal} />
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border">
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-card z-10">
-              <h2 className="font-display text-2xl font-bold">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="font-display text-xl font-bold">
                 {editingCreation ? "Modifier la creation" : "Nouvelle creation"}
               </h2>
-              <button onClick={closeCreationModal} className="p-2 text-muted-foreground hover:text-foreground">
-                <X className="w-6 h-6" />
+              <button onClick={closeCreationModal} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleCreationSubmit} className="p-6 space-y-6">
@@ -678,8 +755,19 @@ export default function AdminPage() {
                   onChange={(e) => setCreationForm({ ...creationForm, title: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
                   placeholder="Nom de la creation"
-                  required
                   maxLength={100}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">DESCRIPTION *</label>
+                <textarea
+                  value={creationForm.description}
+                  onChange={(e) => setCreationForm({ ...creationForm, description: e.target.value })}
+                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none min-h-[100px] resize-none"
+                  placeholder="Description de la creation"
+                  maxLength={500}
+                  required
                 />
               </div>
               <div>
@@ -689,20 +777,9 @@ export default function AdminPage() {
                   value={creationForm.category}
                   onChange={(e) => setCreationForm({ ...creationForm, category: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
-                  placeholder="Ex: Vehicule, Building, etc."
-                  required
+                  placeholder="MODELISATION, BUILD, etc."
                   maxLength={50}
-                />
-              </div>
-              <div>
-                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">DESCRIPTION *</label>
-                <textarea
-                  value={creationForm.description}
-                  onChange={(e) => setCreationForm({ ...creationForm, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none resize-none h-32"
-                  placeholder="Decrivez votre creation..."
                   required
-                  maxLength={1000}
                 />
               </div>
               <div>
@@ -712,43 +789,68 @@ export default function AdminPage() {
                   value={creationForm.tags}
                   onChange={(e) => setCreationForm({ ...creationForm, tags: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
-                  placeholder="ROBLOX, VEHICULE, etc. (separes par des virgules)"
+                  placeholder="BLENDER, ROBLOX, etc. (separes par des virgules)"
                   maxLength={200}
                 />
               </div>
               <div>
+                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">URL VIDEO (optionnel)</label>
+                <input
+                  type="url"
+                  value={creationForm.video_url}
+                  onChange={(e) => setCreationForm({ ...creationForm, video_url: e.target.value })}
+                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
+                  placeholder="https://youtube.com/..."
+                  maxLength={500}
+                />
+              </div>
+              <div>
                 <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">IMAGES</label>
+                <div className="border border-dashed border-border p-6 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleCreationImageUpload}
+                    className="hidden"
+                    id="creation-images"
+                  />
+                  <label htmlFor="creation-images" className="cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Cliquez pour ajouter des images</p>
+                    <p className="text-xs text-muted-foreground mt-1">Max 5MB par image</p>
+                  </label>
+                </div>
                 {creationForm.images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="grid grid-cols-4 gap-2 mt-4">
                     {creationForm.images.map((img, index) => (
-                      <div key={index} className="relative aspect-video bg-muted group">
-                        <Image src={img} alt={`Image ${index + 1}`} fill className="object-cover" />
+                      <div key={index} className="relative aspect-square">
+                        <Image src={img} alt="" fill className="object-cover" />
                         <button
                           type="button"
                           onClick={() => removeCreationImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3 h-3" />
                         </button>
-                        {index === 0 && (
-                          <span className="absolute bottom-2 left-2 px-2 py-1 bg-foreground text-background text-xs font-mono">PRINCIPALE</span>
-                        )}
                       </div>
                     ))}
                   </div>
                 )}
-                <label className="flex items-center justify-center gap-3 p-6 border border-dashed border-border hover:border-foreground cursor-pointer transition-colors">
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Cliquez pour ajouter des images (max 5MB)</span>
-                  <input type="file" accept="image/*" multiple onChange={handleCreationImageUpload} className="hidden" />
-                </label>
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeCreationModal} className="flex-1 px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors">
+                <button
+                  type="button"
+                  onClick={closeCreationModal}
+                  className="flex-1 px-6 py-3 border border-border hover:bg-muted transition-colors"
+                >
                   Annuler
                 </button>
-                <button type="submit" className="flex-1 px-6 py-3 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors">
-                  {editingCreation ? "Enregistrer" : "Creer"}
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors"
+                >
+                  {editingCreation ? "Mettre a jour" : "Creer"}
                 </button>
               </div>
             </form>
@@ -758,15 +860,14 @@ export default function AdminPage() {
 
       {/* Project Modal */}
       {isProjectModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-background/90 backdrop-blur-sm" onClick={closeProjectModal} />
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border">
-            <div className="sticky top-0 flex items-center justify-between p-6 border-b border-border bg-card z-10">
-              <h2 className="font-display text-2xl font-bold">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="font-display text-xl font-bold">
                 {editingProject ? "Modifier le projet" : "Nouveau projet"}
               </h2>
-              <button onClick={closeProjectModal} className="p-2 text-muted-foreground hover:text-foreground">
-                <X className="w-6 h-6" />
+              <button onClick={closeProjectModal} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleProjectSubmit} className="p-6 space-y-6">
@@ -778,8 +879,19 @@ export default function AdminPage() {
                   onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
                   placeholder="Nom du projet"
-                  required
                   maxLength={100}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">DESCRIPTION *</label>
+                <textarea
+                  value={projectForm.description}
+                  onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none min-h-[100px] resize-none"
+                  placeholder="Description du projet"
+                  maxLength={500}
+                  required
                 />
               </div>
               <div>
@@ -789,20 +901,9 @@ export default function AdminPage() {
                   value={projectForm.role}
                   onChange={(e) => setProjectForm({ ...projectForm, role: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
-                  placeholder="Ex: Co-Fondateur, UI Designer, etc."
-                  required
+                  placeholder="Co-Fondateur, Developpeur, etc."
                   maxLength={50}
-                />
-              </div>
-              <div>
-                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">DESCRIPTION *</label>
-                <textarea
-                  value={projectForm.description}
-                  onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
-                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none resize-none h-32"
-                  placeholder="Decrivez le projet..."
                   required
-                  maxLength={1000}
                 />
               </div>
               <div>
@@ -820,8 +921,8 @@ export default function AdminPage() {
                 <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">LIEN DISCORD</label>
                 <input
                   type="url"
-                  value={projectForm.discordLink}
-                  onChange={(e) => setProjectForm({ ...projectForm, discordLink: e.target.value })}
+                  value={projectForm.discord_link}
+                  onChange={(e) => setProjectForm({ ...projectForm, discord_link: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
                   placeholder="https://discord.gg/..."
                   maxLength={200}
@@ -829,37 +930,51 @@ export default function AdminPage() {
               </div>
               <div>
                 <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">IMAGES DU PROJET</label>
+                <div className="border border-dashed border-border p-6 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleProjectImageUpload}
+                    className="hidden"
+                    id="project-images"
+                  />
+                  <label htmlFor="project-images" className="cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Cliquez pour ajouter des images</p>
+                    <p className="text-xs text-muted-foreground mt-1">Max 5MB par image</p>
+                  </label>
+                </div>
                 {projectForm.images.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="grid grid-cols-4 gap-2 mt-4">
                     {projectForm.images.map((img, index) => (
-                      <div key={index} className="relative aspect-video bg-muted group">
-                        <Image src={img} alt={`Image ${index + 1}`} fill className="object-cover" />
+                      <div key={index} className="relative aspect-square">
+                        <Image src={img} alt="" fill className="object-cover" />
                         <button
                           type="button"
                           onClick={() => removeProjectImage(index)}
-                          className="absolute top-2 right-2 p-1 bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
                         >
-                          <X className="w-4 h-4" />
+                          <X className="w-3 h-3" />
                         </button>
-                        {index === 0 && (
-                          <span className="absolute bottom-2 left-2 px-2 py-1 bg-foreground text-background text-xs font-mono">PRINCIPALE</span>
-                        )}
                       </div>
                     ))}
                   </div>
                 )}
-                <label className="flex items-center justify-center gap-3 p-6 border border-dashed border-border hover:border-foreground cursor-pointer transition-colors">
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Cliquez pour ajouter des images (max 5MB)</span>
-                  <input type="file" accept="image/*" multiple onChange={handleProjectImageUpload} className="hidden" />
-                </label>
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeProjectModal} className="flex-1 px-6 py-3 border border-border text-muted-foreground hover:text-foreground hover:border-foreground transition-colors">
+                <button
+                  type="button"
+                  onClick={closeProjectModal}
+                  className="flex-1 px-6 py-3 border border-border hover:bg-muted transition-colors"
+                >
                   Annuler
                 </button>
-                <button type="submit" className="flex-1 px-6 py-3 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors">
-                  {editingProject ? "Enregistrer" : "Creer"}
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-foreground text-background font-medium hover:bg-foreground/90 transition-colors"
+                >
+                  {editingProject ? "Mettre a jour" : "Creer"}
                 </button>
               </div>
             </form>
