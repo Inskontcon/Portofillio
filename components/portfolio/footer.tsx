@@ -4,7 +4,7 @@ export function Footer() {
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-foreground rounded-full" />
-          <span className="font-display text-lg font-bold tracking-tight">Pseudo</span>
+          <span className="font-display text-lg font-bold tracking-tight">inskon</span>
         </div>
         
         <p className="font-mono text-xs tracking-wider text-muted-foreground">

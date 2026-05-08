@@ -84,7 +84,7 @@ export function HeroSection() {
             transition: 'transform 0.4s ease-out'
           }}
         >
-          Inskon
+          inskon
         </h1>
         
         <h2 

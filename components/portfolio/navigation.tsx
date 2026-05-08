@@ -11,7 +11,7 @@ export function Navigation() {
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2 group">
         <div className="w-2 h-2 bg-foreground rounded-full group-hover:scale-125 transition-transform" />
-        <span className="font-display text-lg font-bold tracking-tight">Pseudo</span>
+        <span className="font-display text-lg font-bold tracking-tight">inskon</span>
       </Link>
 
       {/* Navigation Links */}

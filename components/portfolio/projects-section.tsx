@@ -11,6 +11,7 @@ interface Project {
   role: string
   tags: string[]
   images: string[]
+  discordLink: string
   createdAt: string
 }
 
@@ -22,6 +23,7 @@ const defaultProjects: Project[] = [
     role: "Co-Fondateur",
     tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
     images: [],
+    discordLink: "https://discord.gg/uvCdpk5W24",
     createdAt: "2026"
   },
   {
@@ -31,6 +33,7 @@ const defaultProjects: Project[] = [
     role: "Projet",
     tags: ["ROBLOX", "MADE IN FRANCE"],
     images: [],
+    discordLink: "https://discord.gg/uvCdpk5W24",
     createdAt: "2026"
   }
 ]
@@ -203,15 +206,17 @@ export function ProjectsSection() {
           )}
           
           {/* View More Link */}
-          <a
-            href="https://discord.gg/uvCdpk5W24"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 text-sm font-mono tracking-wider hover:text-muted-foreground transition-colors"
-          >
-            REJOINDRE LE DISCORD
-            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
+          {currentProject.discordLink && (
+            <a
+              href={currentProject.discordLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 text-sm font-mono tracking-wider hover:text-muted-foreground transition-colors"
+            >
+              REJOINDRE LE DISCORD
+              <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            </a>
+          )}
         </div>
 
         {/* Dots Navigation */}

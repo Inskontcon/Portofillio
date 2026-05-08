@@ -22,8 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Portfolio - Modelisateur & Builder',
-  description: 'Modeliser le modele. Builder l\'experience. Portfolio creatif.',
+  title: 'inskon - Portfolio Modelisateur & Builder',
+  description: 'Modeliser le modele. Builder l\'experience. Portfolio creatif par inskon.',
   generator: 'v0.app',
 }
 

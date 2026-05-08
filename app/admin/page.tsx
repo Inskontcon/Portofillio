@@ -23,6 +23,7 @@ interface Project {
   role: string
   tags: string[]
   images: string[]
+  discordLink: string
   createdAt: string
 }
 
@@ -64,7 +65,8 @@ export default function AdminPage() {
     description: "",
     role: "",
     tags: "",
-    images: [] as string[]
+    images: [] as string[],
+    discordLink: ""
   })
 
   useEffect(() => {
@@ -98,6 +100,7 @@ export default function AdminPage() {
             role: "Co-Fondateur",
             tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
             images: [],
+            discordLink: "https://discord.gg/uvCdpk5W24",
             createdAt: "2026"
           },
           {
@@ -107,6 +110,7 @@ export default function AdminPage() {
             role: "Projet",
             tags: ["ROBLOX", "MADE IN FRANCE"],
             images: [],
+            discordLink: "https://discord.gg/uvCdpk5W24",
             createdAt: "2026"
           }
         ]
@@ -123,6 +127,7 @@ export default function AdminPage() {
           role: "Co-Fondateur",
           tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
           images: [],
+          discordLink: "https://discord.gg/uvCdpk5W24",
           createdAt: "2026"
         },
         {
@@ -132,6 +137,7 @@ export default function AdminPage() {
           role: "Projet",
           tags: ["ROBLOX", "MADE IN FRANCE"],
           images: [],
+          discordLink: "https://discord.gg/uvCdpk5W24",
           createdAt: "2026"
         }
       ]
@@ -303,7 +309,8 @@ export default function AdminPage() {
         description: project.description,
         role: project.role,
         tags: project.tags.join(", "),
-        images: project.images
+        images: project.images,
+        discordLink: project.discordLink || ""
       })
     } else {
       setEditingProject(null)
@@ -312,7 +319,8 @@ export default function AdminPage() {
         description: "",
         role: "",
         tags: "",
-        images: []
+        images: [],
+        discordLink: ""
       })
     }
     setIsProjectModalOpen(true)
@@ -349,7 +357,8 @@ export default function AdminPage() {
               description: sanitizedDescription,
               role: sanitizedRole,
               tags: tagsArray,
-              images: projectForm.images
+              images: projectForm.images,
+              discordLink: projectForm.discordLink
             }
           : p
       )
@@ -362,6 +371,7 @@ export default function AdminPage() {
         role: sanitizedRole,
         tags: tagsArray,
         images: projectForm.images,
+        discordLink: projectForm.discordLink,
         createdAt: new Date().getFullYear().toString()
       }
       saveProjects([...projects, newProject])
@@ -733,6 +743,17 @@ export default function AdminPage() {
                   onChange={(e) => setProjectForm({ ...projectForm, tags: e.target.value })}
                   className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
                   placeholder="ROBLOX, MADE IN FRANCE, etc."
+                  maxLength={200}
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-xs tracking-wider text-muted-foreground mb-2">LIEN DISCORD</label>
+                <input
+                  type="url"
+                  value={projectForm.discordLink}
+                  onChange={(e) => setProjectForm({ ...projectForm, discordLink: e.target.value })}
+                  className="w-full px-4 py-3 bg-background border border-border focus:border-foreground transition-colors outline-none"
+                  placeholder="https://discord.gg/..."
                   maxLength={200}
                 />
               </div>
