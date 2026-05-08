@@ -1,20 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { ArrowUpRight, Loader2 } from "lucide-react"
 import { Navigation } from "@/components/portfolio/navigation"
 import { Footer } from "@/components/portfolio/footer"
+import { createClient } from "@/lib/supabase/client"
 
 interface Creation {
   id: string
   title: string
   description: string
-  category: string
   tags: string[]
   images: string[]
-  createdAt: string
+  video_url?: string
+  created_at: string
 }
 
 export default function CreationsPage() {
@@ -22,43 +23,42 @@ export default function CreationsPage() {
   const [loading, setLoading] = useState(true)
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    const loadCreations = () => {
-      setLoading(true)
-      try {
-        const savedCreations = localStorage.getItem("portfolio_creations")
-        if (savedCreations) {
-          const parsed = JSON.parse(savedCreations)
-          setCreations(parsed)
-          // Initialiser les etats de chargement des images
-          const loadingStates: Record<string, boolean> = {}
-          parsed.forEach((c: Creation) => {
-            if (c.images && c.images.length > 0) {
-              loadingStates[c.id] = true
-            }
-          })
-          setImageLoadingStates(loadingStates)
-        } else {
-          setCreations([])
-        }
-      } catch {
+  const supabase = createClient()
+
+  const loadCreations = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('creations')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading creations:', error)
+        setCreations([])
+      } else if (data) {
+        setCreations(data)
+        // Initialiser les etats de chargement des images
+        const loadingStates: Record<string, boolean> = {}
+        data.forEach((c: Creation) => {
+          if (c.images && c.images.length > 0) {
+            loadingStates[c.id] = true
+          }
+        })
+        setImageLoadingStates(loadingStates)
+      } else {
         setCreations([])
       }
-      setLoading(false)
+    } catch (error) {
+      console.error('Error loading creations:', error)
+      setCreations([])
     }
-    
+    setLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
     loadCreations()
-    
-    // Ecouter les changements de localStorage (pour synchro avec admin)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "portfolio_creations") {
-        loadCreations()
-      }
-    }
-    
-    window.addEventListener("storage", handleStorageChange)
-    return () => window.removeEventListener("storage", handleStorageChange)
-  }, [])
+  }, [loadCreations])
 
   const handleImageLoad = (creationId: string) => {
     setImageLoadingStates(prev => ({ ...prev, [creationId]: false }))
@@ -145,7 +145,9 @@ export default function CreationsPage() {
 
                   {/* Year */}
                   <div className="absolute top-4 right-4 z-20">
-                    <span className="font-mono text-xs text-foreground/80">{creation.createdAt}</span>
+                    <span className="font-mono text-xs text-foreground/80">
+                      {creation.created_at ? new Date(creation.created_at).getFullYear() : ''}
+                    </span>
                   </div>
 
                   {/* Hover Arrow */}
@@ -156,8 +158,8 @@ export default function CreationsPage() {
 
                 {/* Info */}
                 <div className="p-5">
-                  {creation.category && (
-                    <p className="text-xs text-muted-foreground font-mono tracking-wider mb-2">{creation.category}</p>
+                  {creation.tags && creation.tags[0] && (
+                    <p className="text-xs text-muted-foreground font-mono tracking-wider mb-2">{creation.tags[0]}</p>
                   )}
                   <h3 className="font-display text-xl font-bold mb-2 text-balance">{creation.title}</h3>
                   {creation.description && (

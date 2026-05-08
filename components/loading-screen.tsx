@@ -47,7 +47,7 @@ export function LoadingScreen() {
       {/* Logo / Titre */}
       <div className={`mb-12 transition-all duration-500 ${isExiting ? "translate-y-[-20px] opacity-0" : ""}`}>
         <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tighter-custom">
-          <span className="text-muted-foreground">●</span> Pseudo
+          <span className="text-muted-foreground">●</span> inskon
         </h1>
       </div>
 

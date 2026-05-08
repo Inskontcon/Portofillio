@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
@@ -8,15 +8,16 @@ import { ArrowLeft, ArrowRight, ChevronLeft, Loader2, ZoomIn } from "lucide-reac
 import { Navigation } from "@/components/portfolio/navigation"
 import { Footer } from "@/components/portfolio/footer"
 import { ImageLightbox } from "@/components/image-lightbox"
+import { createClient } from "@/lib/supabase/client"
 
 interface Creation {
   id: string
   title: string
   description: string
-  category: string
   tags: string[]
   images: string[]
-  createdAt: string
+  video_url?: string
+  created_at: string
 }
 
 export default function CreationDetailPage() {
@@ -27,34 +28,33 @@ export default function CreationDetailPage() {
   const [imageLoading, setImageLoading] = useState(true)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
   
+  const supabase = createClient()
+
+  const loadCreation = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('creations')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+
+      if (error) {
+        console.error('Error loading creation:', error)
+        setCreation(null)
+      } else {
+        setCreation(data)
+      }
+    } catch (error) {
+      console.error('Error loading creation:', error)
+      setCreation(null)
+    }
+    setLoading(false)
+  }, [supabase, params.id])
+
   useEffect(() => {
-    const loadCreation = () => {
-      setLoading(true)
-      const savedCreations = localStorage.getItem("portfolio_creations")
-      if (savedCreations) {
-        try {
-          const creations: Creation[] = JSON.parse(savedCreations)
-          const found = creations.find(c => c.id === params.id)
-          setCreation(found || null)
-        } catch {
-          setCreation(null)
-        }
-      }
-      setLoading(false)
-    }
-    
     loadCreation()
-    
-    // Ecouter les changements de localStorage
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "portfolio_creations") {
-        loadCreation()
-      }
-    }
-    
-    window.addEventListener("storage", handleStorageChange)
-    return () => window.removeEventListener("storage", handleStorageChange)
-  }, [params.id])
+  }, [loadCreation])
   
   // Reset image loading state when switching images
   useEffect(() => {
@@ -90,8 +90,11 @@ export default function CreationDetailPage() {
     )
   }
 
+  const category = creation.tags?.[0] || ''
+  const year = creation.created_at ? new Date(creation.created_at).getFullYear().toString() : ''
+
   const nextImage = () => {
-    if (creation.images.length > 0) {
+    if (creation.images && creation.images.length > 0) {
       setCurrentImageIndex((prev) => 
         prev === creation.images.length - 1 ? 0 : prev + 1
       )
@@ -99,7 +102,7 @@ export default function CreationDetailPage() {
   }
 
   const prevImage = () => {
-    if (creation.images.length > 0) {
+    if (creation.images && creation.images.length > 0) {
       setCurrentImageIndex((prev) => 
         prev === 0 ? creation.images.length - 1 : prev - 1
       )
@@ -221,11 +224,11 @@ export default function CreationDetailPage() {
           {/* Info */}
           <div className="flex flex-col">
             <div className="flex items-center gap-4 mb-4">
-              {creation.category && (
-                <span className="font-mono text-xs tracking-widest text-muted-foreground">{creation.category}</span>
+              {category && (
+                <span className="font-mono text-xs tracking-widest text-muted-foreground">{category}</span>
               )}
-              {creation.createdAt && (
-                <span className="font-mono text-xs tracking-widest text-muted-foreground">{creation.createdAt}</span>
+              {year && (
+                <span className="font-mono text-xs tracking-widest text-muted-foreground">{year}</span>
               )}
             </div>
             
@@ -253,6 +256,20 @@ export default function CreationDetailPage() {
               </div>
             )}
 
+            {/* Video URL */}
+            {creation.video_url && (
+              <div className="mb-8">
+                <a 
+                  href={creation.video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-border hover:border-foreground transition-colors"
+                >
+                  <span className="font-mono text-sm">Voir la video</span>
+                </a>
+              </div>
+            )}
+
             {/* Separator */}
             <div className="h-px bg-border my-8" />
 
@@ -260,16 +277,16 @@ export default function CreationDetailPage() {
             <div className="space-y-4">
               <h3 className="font-display text-lg font-bold">Details</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {creation.category && (
+                {category && (
                   <div>
                     <p className="text-muted-foreground mb-1">Categorie</p>
-                    <p>{creation.category}</p>
+                    <p>{category}</p>
                   </div>
                 )}
-                {creation.createdAt && (
+                {year && (
                   <div>
                     <p className="text-muted-foreground mb-1">Annee</p>
-                    <p>{creation.createdAt}</p>
+                    <p>{year}</p>
                   </div>
                 )}
                 <div>

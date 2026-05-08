@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { ArrowRight, ArrowLeft, ArrowUpRight, Loader2 } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 interface Project {
   id: string
@@ -11,7 +12,8 @@ interface Project {
   role: string
   tags: string[]
   images: string[]
-  createdAt: string
+  discord_link: string
+  created_at: string
 }
 
 const defaultProjects: Project[] = [
@@ -22,7 +24,8 @@ const defaultProjects: Project[] = [
     role: "Co-Fondateur",
     tags: ["ROBLOX", "MADE IN FRANCE", "WL-FA", "LILLE - CRETEIL"],
     images: [],
-    createdAt: "2026"
+    discord_link: "https://discord.gg/uvCdpk5W24",
+    created_at: "2026"
   },
   {
     id: "2",
@@ -31,7 +34,8 @@ const defaultProjects: Project[] = [
     role: "Projet",
     tags: ["ROBLOX", "MADE IN FRANCE"],
     images: [],
-    createdAt: "2026"
+    discord_link: "https://discord.gg/uvCdpk5W24",
+    created_at: "2026"
   }
 ]
 
@@ -41,41 +45,34 @@ export function ProjectsSection() {
   const [isLoading, setIsLoading] = useState(true)
   const [isImageLoading, setIsImageLoading] = useState(false)
 
-  useEffect(() => {
-    const loadProjects = () => {
-      setIsLoading(true)
-      try {
-        const savedProjects = localStorage.getItem("portfolio_projects")
-        if (savedProjects) {
-          const parsed = JSON.parse(savedProjects)
-          if (parsed.length > 0) {
-            setProjects(parsed)
-          } else {
-            setProjects(defaultProjects)
-            localStorage.setItem("portfolio_projects", JSON.stringify(defaultProjects))
-          }
-        } else {
-          setProjects(defaultProjects)
-          localStorage.setItem("portfolio_projects", JSON.stringify(defaultProjects))
-        }
-      } catch {
+  const supabase = createClient()
+
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error loading projects:', error)
+        setProjects(defaultProjects)
+      } else if (data && data.length > 0) {
+        setProjects(data)
+      } else {
         setProjects(defaultProjects)
       }
-      setIsLoading(false)
+    } catch (error) {
+      console.error('Error loading projects:', error)
+      setProjects(defaultProjects)
     }
-    
+    setIsLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
     loadProjects()
-    
-    // Ecouter les changements de localStorage
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "portfolio_projects") {
-        loadProjects()
-      }
-    }
-    
-    window.addEventListener("storage", handleStorageChange)
-    return () => window.removeEventListener("storage", handleStorageChange)
-  }, [])
+  }, [loadProjects])
 
   const nextProject = () => {
     if (projects.length === 0) return
@@ -164,7 +161,9 @@ export function ProjectsSection() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-          <span className="font-mono text-sm text-muted-foreground">{currentProject.createdAt}</span>
+          <span className="font-mono text-sm text-muted-foreground">
+            {currentProject.created_at ? new Date(currentProject.created_at).getFullYear() : ''}
+          </span>
         </div>
 
         {/* Main Content */}
@@ -203,15 +202,17 @@ export function ProjectsSection() {
           )}
           
           {/* View More Link */}
-          <a
-            href="https://discord.gg/uvCdpk5W24"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 text-sm font-mono tracking-wider hover:text-muted-foreground transition-colors"
-          >
-            REJOINDRE LE DISCORD
-            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
+          {currentProject.discord_link && (
+            <a
+              href={currentProject.discord_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex items-center gap-2 text-sm font-mono tracking-wider hover:text-muted-foreground transition-colors"
+            >
+              REJOINDRE LE DISCORD
+              <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            </a>
+          )}
         </div>
 
         {/* Dots Navigation */}

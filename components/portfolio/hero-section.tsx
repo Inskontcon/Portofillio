@@ -4,9 +4,38 @@ import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 
+interface Star {
+  id: number
+  x: number
+  y: number
+  size: number
+  duration: number
+  delay: number
+}
+
 export function HeroSection() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [stars, setStars] = useState<Star[]>([])
   const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    // Generate random falling stars
+    const generateStars = () => {
+      const newStars: Star[] = []
+      for (let i = 0; i < 20; i++) {
+        newStars.push({
+          id: i,
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          size: Math.random() * 2 + 1,
+          duration: Math.random() * 3 + 2,
+          delay: Math.random() * 5
+        })
+      }
+      setStars(newStars)
+    }
+    generateStars()
+  }, [])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -35,6 +64,39 @@ export function HeroSection() {
           backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
           backgroundSize: '60px 60px'
         }} />
+      </div>
+
+      {/* Falling stars animation */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {stars.map((star) => (
+          <div
+            key={star.id}
+            className="absolute animate-falling-star"
+            style={{
+              left: `${star.x}%`,
+              top: `-5%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              animationDuration: `${star.duration}s`,
+              animationDelay: `${star.delay}s`,
+            }}
+          >
+            <div 
+              className="w-full h-full bg-foreground/60 rounded-full"
+              style={{
+                boxShadow: `0 0 ${star.size * 2}px ${star.size}px rgba(255,255,255,0.3)`
+              }}
+            />
+            <div 
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[1px] bg-gradient-to-t from-foreground/40 to-transparent"
+              style={{
+                height: `${star.size * 15}px`,
+                transform: 'translateX(-50%) rotate(45deg)',
+                transformOrigin: 'top'
+              }}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Decorative circles - top left */}
@@ -84,7 +146,7 @@ export function HeroSection() {
             transition: 'transform 0.4s ease-out'
           }}
         >
-          Inskon
+          inskon
         </h1>
         
         <h2 
