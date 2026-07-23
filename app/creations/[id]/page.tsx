@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, ArrowRight, ChevronLeft, Loader2, ZoomIn } from "lucide-react"
+import { ArrowLeft, ArrowRight, ChevronLeft, Loader2, ZoomIn, RefreshCw } from "lucide-react"
 import { Navigation } from "@/components/portfolio/navigation"
 import { Footer } from "@/components/portfolio/footer"
 import { ImageLightbox } from "@/components/image-lightbox"
 import { createClient } from "@/lib/supabase/client"
+import { fetchWithRetry } from "@/lib/fetch-with-retry"
 
 interface Creation {
   id: string
@@ -27,30 +28,38 @@ export default function CreationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [imageLoading, setImageLoading] = useState(true)
   const [isLightboxOpen, setIsLightboxOpen] = useState(false)
-  
-  const supabase = createClient()
+  const [hasError, setHasError] = useState(false)
 
   const loadCreation = useCallback(async () => {
     setLoading(true)
-    try {
-      const { data, error } = await supabase
+    setHasError(false)
+
+    const supabase = createClient()
+
+    const { data, error } = await fetchWithRetry<Creation>(() =>
+      supabase
         .from('creations')
         .select('*')
         .eq('id', params.id)
         .single()
+    )
 
-      if (error) {
-        console.error('Error loading creation:', error)
+    if (error) {
+      // Distinguish a "not found" (no rows) from a real connection error
+      const code = (error as { code?: string })?.code
+      if (code === 'PGRST116') {
+        // No rows returned - creation genuinely doesn't exist
         setCreation(null)
       } else {
-        setCreation(data)
+        console.error('[v0] Error loading creation:', error)
+        setHasError(true)
       }
-    } catch (error) {
-      console.error('Error loading creation:', error)
-      setCreation(null)
+    } else {
+      setCreation(data)
     }
+
     setLoading(false)
-  }, [supabase, params.id])
+  }, [params.id])
 
   useEffect(() => {
     loadCreation()
@@ -68,6 +77,34 @@ export default function CreationDetailPage() {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           <span className="text-muted-foreground font-mono text-sm">Chargement de la creation...</span>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
+  if (hasError) {
+    return (
+      <main className="relative min-h-screen overflow-x-hidden">
+        <Navigation />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+          <div className="w-20 h-20 border border-border rounded-full flex items-center justify-center mb-6">
+            <RefreshCw className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <h1 className="font-display text-4xl font-bold mb-4">Erreur de connexion</h1>
+          <p className="text-muted-foreground mb-6">Impossible de charger cette creation. Veuillez reessayer.</p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={loadCreation}
+              className="inline-flex items-center gap-2 px-6 py-3 border border-foreground/30 hover:border-foreground hover:bg-foreground hover:text-background transition-colors font-mono text-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reessayer
+            </button>
+            <Link href="/creations" className="px-6 py-3 border border-border hover:border-foreground transition-colors">
+              Retour aux creations
+            </Link>
+          </div>
         </div>
         <Footer />
       </main>
