@@ -4,9 +4,10 @@
  * exponential backoff before giving up.
  */
 export async function fetchWithRetry<T>(
-  operation: () => Promise<{ data: T | null; error: unknown }>,
-  maxRetries = 3,
-  baseDelayMs = 400,
+  operation: () => PromiseLike<{ data: T | null; error: unknown }>,
+  maxRetries = 4,
+  baseDelayMs = 500,
+  shouldRetryResult: (result: { data: T | null; error: unknown }) => boolean = (result) => Boolean(result.error),
 ): Promise<{ data: T | null; error: unknown }> {
   let lastResult: { data: T | null; error: unknown } = {
     data: null,
@@ -16,7 +17,7 @@ export async function fetchWithRetry<T>(
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const result = await operation()
-      if (!result.error) {
+      if (!shouldRetryResult(result)) {
         return result
       }
       lastResult = result

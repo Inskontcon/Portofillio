@@ -93,7 +93,7 @@ export default function AdminPage() {
       if (creationsError) {
         console.error('Error loading creations:', creationsError)
       } else {
-        setCreations(creationsData?.map(c => ({
+        setCreations(creationsData?.map((c: Creation) => ({
           ...c,
           category: c.tags?.[0] || 'MODELISATION'
         })) || [])

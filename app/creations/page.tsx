@@ -31,11 +31,15 @@ export default function CreationsPage() {
 
     const supabase = createClient()
 
-    const { data, error } = await fetchWithRetry<Creation[]>(() =>
-      supabase
-        .from('creations')
-        .select('*')
-        .order('created_at', { ascending: false })
+    const { data, error } = await fetchWithRetry<Creation[]>(
+      () =>
+        supabase
+          .from('creations')
+          .select('*')
+          .order('created_at', { ascending: false }),
+      4,
+      500,
+      (result) => Boolean(result.error) || (Array.isArray(result.data) && result.data.length === 0),
     )
 
     if (error) {
@@ -60,6 +64,10 @@ export default function CreationsPage() {
 
   useEffect(() => {
     loadCreations()
+
+    const handleWindowFocus = () => loadCreations()
+    window.addEventListener("focus", handleWindowFocus)
+    return () => window.removeEventListener("focus", handleWindowFocus)
   }, [loadCreations])
 
   const handleImageLoad = (creationId: string) => {
