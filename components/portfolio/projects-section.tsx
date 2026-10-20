@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { ArrowRight, ArrowLeft, ArrowUpRight, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { fetchWithRetry } from "@/lib/fetch-with-retry"
 
 interface Project {
   id: string
@@ -45,30 +46,29 @@ export function ProjectsSection() {
   const [isLoading, setIsLoading] = useState(true)
   const [isImageLoading, setIsImageLoading] = useState(false)
 
-  const supabase = createClient()
-
   const loadProjects = useCallback(async () => {
     setIsLoading(true)
-    try {
-      const { data, error } = await supabase
+
+    const supabase = createClient()
+
+    const { data, error } = await fetchWithRetry<Project[]>(() =>
+      supabase
         .from('projects')
         .select('*')
         .order('created_at', { ascending: false })
+    )
 
-      if (error) {
-        console.error('Error loading projects:', error)
-        setProjects(defaultProjects)
-      } else if (data && data.length > 0) {
-        setProjects(data)
-      } else {
-        setProjects(defaultProjects)
-      }
-    } catch (error) {
-      console.error('Error loading projects:', error)
+    if (error) {
+      console.error('[v0] Error loading projects:', error)
+      setProjects(defaultProjects)
+    } else if (data && data.length > 0) {
+      setProjects(data)
+    } else {
       setProjects(defaultProjects)
     }
+
     setIsLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     loadProjects()

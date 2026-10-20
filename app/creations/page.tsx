@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowUpRight, Loader2 } from "lucide-react"
+import { ArrowUpRight, Loader2, RefreshCw } from "lucide-react"
 import { Navigation } from "@/components/portfolio/navigation"
 import { Footer } from "@/components/portfolio/footer"
 import { createClient } from "@/lib/supabase/client"
+import { fetchWithRetry } from "@/lib/fetch-with-retry"
 
 interface Creation {
   id: string
@@ -21,40 +22,41 @@ interface Creation {
 export default function CreationsPage() {
   const [creations, setCreations] = useState<Creation[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({})
-
-  const supabase = createClient()
 
   const loadCreations = useCallback(async () => {
     setLoading(true)
-    try {
-      const { data, error } = await supabase
+    setHasError(false)
+
+    const supabase = createClient()
+
+    const { data, error } = await fetchWithRetry<Creation[]>(() =>
+      supabase
         .from('creations')
         .select('*')
         .order('created_at', { ascending: false })
+    )
 
-      if (error) {
-        console.error('Error loading creations:', error)
-        setCreations([])
-      } else if (data) {
-        setCreations(data)
-        // Initialiser les etats de chargement des images
-        const loadingStates: Record<string, boolean> = {}
-        data.forEach((c: Creation) => {
-          if (c.images && c.images.length > 0) {
-            loadingStates[c.id] = true
-          }
-        })
-        setImageLoadingStates(loadingStates)
-      } else {
-        setCreations([])
-      }
-    } catch (error) {
-      console.error('Error loading creations:', error)
-      setCreations([])
+    if (error) {
+      // Real error (network/DB) - do NOT wipe existing creations, show error state instead
+      console.error('[v0] Error loading creations:', error)
+      setHasError(true)
+    } else {
+      const rows = data ?? []
+      setCreations(rows)
+      // Initialiser les etats de chargement des images
+      const loadingStates: Record<string, boolean> = {}
+      rows.forEach((c: Creation) => {
+        if (c.images && c.images.length > 0) {
+          loadingStates[c.id] = true
+        }
+      })
+      setImageLoadingStates(loadingStates)
     }
+
     setLoading(false)
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     loadCreations()
@@ -90,6 +92,21 @@ export default function CreationsPage() {
           <div className="flex flex-col items-center justify-center py-32 gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             <span className="text-muted-foreground font-mono text-sm">Chargement des creations...</span>
+          </div>
+        ) : hasError ? (
+          <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border">
+            <div className="w-20 h-20 border border-border rounded-full flex items-center justify-center mb-6">
+              <RefreshCw className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground mb-2">Impossible de charger les creations</p>
+            <p className="text-xs text-muted-foreground/60 mb-6">Un probleme de connexion est survenu. Veuillez reessayer.</p>
+            <button
+              onClick={loadCreations}
+              className="inline-flex items-center gap-2 px-6 py-3 border border-foreground/30 hover:border-foreground hover:bg-foreground hover:text-background transition-colors font-mono text-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reessayer
+            </button>
           </div>
         ) : creations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-border">
